@@ -374,9 +374,9 @@
 
           <!-- 下一步按钮 -->
           <div class="next-step-section" v-if="currentPhase >= 2">
-            <button class="next-step-btn" @click="goToNextStep" :disabled="currentPhase < 2">
-              进入环境搭建
-              <span class="btn-arrow">→</span>
+            <button class="next-step-btn" @click="goToNextStep" :disabled="currentPhase < 2 || creatingSimulation">
+              {{ creatingSimulation ? '正在进入...' : '进入环境搭建' }}
+              <span class="btn-arrow" v-if="!creatingSimulation">→</span>
             </button>
           </div>
         </div>
@@ -415,6 +415,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
+import { createSimulation } from '../api/simulation'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 import * as d3 from 'd3'
 
@@ -435,6 +436,7 @@ const ontologyProgress = ref(null) // 本体生成进度
 const currentPhase = ref(-1) // -1: 上传中, 0: 本体生成中, 1: 图谱构建, 2: 完成
 const selectedItem = ref(null) // 选中的节点或边
 const isFullScreen = ref(false)
+const creatingSimulation = ref(false)
 
 // DOM引用
 const graphContainer = ref(null)
@@ -480,9 +482,37 @@ const goHome = () => {
   router.push('/')
 }
 
-const goToNextStep = () => {
-  // TODO: 进入环境搭建步骤
-  alert('环境搭建功能开发中...')
+const goToNextStep = async () => {
+  if (!projectData.value?.project_id || !projectData.value?.graph_id) {
+    console.error('缺少项目或图谱信息')
+    alert('缺少项目或图谱信息')
+    return
+  }
+
+  creatingSimulation.value = true
+  try {
+    const res = await createSimulation({
+      project_id: projectData.value.project_id,
+      graph_id: projectData.value.graph_id,
+      enable_twitter: true,
+      enable_reddit: true
+    })
+
+    if (res.success && res.data?.simulation_id) {
+      router.push({
+        name: 'Simulation',
+        params: { simulationId: res.data.simulation_id }
+      })
+    } else {
+      console.error('创建模拟失败:', res.error)
+      alert('创建模拟失败: ' + (res.error || '未知错误'))
+    }
+  } catch (err) {
+    console.error('创建模拟异常:', err)
+    alert('创建模拟异常: ' + err.message)
+  } finally {
+    creatingSimulation.value = false
+  }
 }
 
 const toggleFullScreen = () => {
