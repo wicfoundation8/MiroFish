@@ -4,6 +4,7 @@ Step2: Zep实体读取与过滤、OASIS模拟准备与运行（全程自动化�
 """
 
 import os
+import sqlite3
 import traceback
 from flask import request, jsonify, send_file
 
@@ -2020,7 +2021,6 @@ def get_simulation_posts(simulation_id: str):
                 }
             })
         
-        import sqlite3
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -2093,7 +2093,6 @@ def get_simulation_comments(simulation_id: str):
                 }
             })
         
-        import sqlite3
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
