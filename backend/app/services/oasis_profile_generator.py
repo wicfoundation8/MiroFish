@@ -1092,27 +1092,23 @@ class OasisProfileGenerator:
             writer = csv.writer(f)
             
             # 写入OASIS要求的表头
-            headers = ['user_id', 'name', 'username', 'user_char', 'description']
+            headers = ['user_id', 'user_name', 'name', 'bio', 'friend_count', 'follower_count', 'statuses_count', 'created_at']
             writer.writerow(headers)
             
             # 写入数据行
             for idx, profile in enumerate(profiles):
-                # user_char: 完整人设（bio + persona），用于LLM系统提示
-                user_char = profile.bio
-                if profile.persona and profile.persona != profile.bio:
-                    user_char = f"{profile.bio} {profile.persona}"
                 # 处理换行符（CSV中用空格替代）
-                user_char = user_char.replace('\n', ' ').replace('\r', ' ')
-                
-                # description: 简短简介，用于外部显示
-                description = profile.bio.replace('\n', ' ').replace('\r', ' ')
+                bio = profile.bio.replace('\n', ' ').replace('\r', ' ') if profile.bio else ''
                 
                 row = [
                     idx,                    # user_id: 从0开始的顺序ID
+                    profile.user_name,      # user_name: 用户名
                     profile.name,           # name: 真实姓名
-                    profile.user_name,      # username: 用户名
-                    user_char,              # user_char: 完整人设（内部LLM使用）
-                    description             # description: 简短简介（外部显示）
+                    bio,                    # bio: 简介
+                    profile.friend_count,   # friend_count: 关注数
+                    profile.follower_count, # follower_count: 粉丝数
+                    profile.statuses_count, # statuses_count: 推文数
+                    profile.created_at      # created_at: 创建时间
                 ]
                 writer.writerow(row)
         
@@ -1167,7 +1163,7 @@ class OasisProfileGenerator:
             item = {
                 "user_id": profile.user_id if profile.user_id is not None else idx,  # 关键：必须包含 user_id
                 "username": profile.user_name,
-                "name": profile.name,
+                "realname": profile.name,
                 "bio": profile.bio[:150] if profile.bio else f"{profile.name}",
                 "persona": profile.persona or f"{profile.name} is a participant in social discussions.",
                 "karma": profile.karma if profile.karma else 1000,
