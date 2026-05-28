@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger("WicClawAI_Polymarket_Swarm")
 
 # Simulation Constants
-USDC_BALANCE = 608.33
+USDC_BALANCE = 103.92
 MATIC_BALANCE = 44.06
 
 # Polymarket Mock host
@@ -64,7 +64,7 @@ class PolymarketSwarmController:
 
         # 2. Polymarket Client (py-clob-client framework)
         # Using mock/paper trading mode, so we just init it with host
-        self.clob_client = ClobClient(POLYMARKET_HOST)
+        self.clob_client = ClobClient(POLYMARKET_HOST, signature_type=1)
 
         # Paper trading balance state
         self.balances = {
