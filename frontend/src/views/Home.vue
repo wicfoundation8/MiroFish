@@ -11,7 +11,9 @@
         <a href="#" class="nav-link">Docs</a>
       </div>
       <div class="nav-actions">
-        <button class="connect-wallet-btn">Connect Wallet</button>
+        <button class="connect-wallet-btn" @click="connectWallet" :disabled="isConnecting">
+          {{ isConnecting ? 'Connecting...' : (walletAddress ? truncateAddress(walletAddress) : 'Connect Wallet') }}
+        </button>
       </div>
     </nav>
 
@@ -60,7 +62,9 @@
               <span class="tag">Arbitrage</span>
               <span class="tag">HFT</span>
             </div>
-            <button class="deploy-btn">Deploy Agent</button>
+            <button class="deploy-btn" @click="deployAgent('midas', '$MDS')" :disabled="isDeploying['midas'] || deployedAgents['midas']">
+              {{ deployedAgents['midas'] ? 'Deployed ✓' : (isDeploying['midas'] ? 'Deploying...' : 'Deploy Agent') }}
+            </button>
           </div>
 
           <!-- Agent: Apollo -->
@@ -96,7 +100,9 @@
               <span class="tag">Momentum</span>
               <span class="tag">Mid-Risk</span>
             </div>
-            <button class="deploy-btn">Deploy Agent</button>
+            <button class="deploy-btn" @click="deployAgent('apollo', '$APL')" :disabled="isDeploying['apollo'] || deployedAgents['apollo']">
+              {{ deployedAgents['apollo'] ? 'Deployed ✓' : (isDeploying['apollo'] ? 'Deploying...' : 'Deploy Agent') }}
+            </button>
           </div>
 
           <!-- Agent: Hermes -->
@@ -132,7 +138,9 @@
               <span class="tag">MEV</span>
               <span class="tag">Scalping</span>
             </div>
-            <button class="deploy-btn">Deploy Agent</button>
+            <button class="deploy-btn" @click="deployAgent('hermes', '$HRM')" :disabled="isDeploying['hermes'] || deployedAgents['hermes']">
+              {{ deployedAgents['hermes'] ? 'Deployed ✓' : (isDeploying['hermes'] ? 'Deploying...' : 'Deploy Agent') }}
+            </button>
           </div>
 
           <!-- Agent: Athena -->
@@ -168,7 +176,9 @@
               <span class="tag">Yield</span>
               <span class="tag">Low-Risk</span>
             </div>
-            <button class="deploy-btn">Deploy Agent</button>
+            <button class="deploy-btn" @click="deployAgent('athena', '$ATH')" :disabled="isDeploying['athena'] || deployedAgents['athena']">
+              {{ deployedAgents['athena'] ? 'Deployed ✓' : (isDeploying['athena'] ? 'Deploying...' : 'Deploy Agent') }}
+            </button>
           </div>
 
           <!-- Agent: Zeus -->
@@ -204,7 +214,9 @@
               <span class="tag">Leverage</span>
               <span class="tag">High-Risk</span>
             </div>
-            <button class="deploy-btn">Deploy Agent</button>
+            <button class="deploy-btn" @click="deployAgent('zeus', '$ZEU')" :disabled="isDeploying['zeus'] || deployedAgents['zeus']">
+              {{ deployedAgents['zeus'] ? 'Deployed ✓' : (isDeploying['zeus'] ? 'Deploying...' : 'Deploy Agent') }}
+            </button>
           </div>
 
           <!-- Agent: Vulcan -->
@@ -240,7 +252,9 @@
               <span class="tag">Market-Maker</span>
               <span class="tag">Liquidity</span>
             </div>
-            <button class="deploy-btn">Deploy Agent</button>
+            <button class="deploy-btn" @click="deployAgent('vulcan', '$VUL')" :disabled="isDeploying['vulcan'] || deployedAgents['vulcan']">
+              {{ deployedAgents['vulcan'] ? 'Deployed ✓' : (isDeploying['vulcan'] ? 'Deploying...' : 'Deploy Agent') }}
+            </button>
           </div>
 
         </div>
@@ -250,12 +264,93 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { BrowserProvider } from 'ethers'
+import axios from 'axios'
+
+const walletAddress = ref(null)
+const isConnecting = ref(false)
+const isDeploying = reactive({})
+const deployedAgents = reactive({})
+
+const connectWallet = async () => {
+  if (walletAddress.value) {
+    // Already connected, maybe handle disconnect if desired, but we'll just return
+    return;
+  }
+
+  if (typeof window.ethereum !== 'undefined') {
+    try {
+      isConnecting.value = true;
+      const provider = new BrowserProvider(window.ethereum);
+      // Prompt user for account connections
+      const accounts = await provider.send("eth_requestAccounts", []);
+      if (accounts.length > 0) {
+        walletAddress.value = accounts[0];
+      }
+    } catch (error) {
+      console.error("User denied account access or error occurred", error);
+      alert("Failed to connect wallet: " + (error.message || "Unknown error"));
+    } finally {
+      isConnecting.value = false;
+    }
+  } else {
+    alert("Please install a Web3 wallet (e.g., MetaMask) to use this feature.");
+  }
+}
+
+const truncateAddress = (address) => {
+  if (!address) return '';
+  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+}
+
+const deployAgent = async (agentId, ticker) => {
+  if (!walletAddress.value) {
+    alert("Please connect your wallet first to deploy an agent.");
+    return;
+  }
+
+  isDeploying[agentId] = true;
+  try {
+    const response = await axios.post('/api/deployment/deploy', {
+      agentId: agentId,
+      walletAddress: walletAddress.value
+    });
+
+    if (response.data.status === 'success') {
+      deployedAgents[agentId] = true;
+    } else {
+      alert("Deployment failed: " + response.data.error);
+    }
+  } catch (error) {
+    console.error("Error deploying agent", error);
+    alert("Error communicating with backend server.");
+  } finally {
+    isDeploying[agentId] = false;
+  }
+}
 
 onMounted(() => {
   // Reset any global light theme styles from previous versions
   document.body.style.backgroundColor = '#0a0a0a';
   document.body.style.color = '#ffffff';
+
+  // Optionally check if already connected
+  if (typeof window.ethereum !== 'undefined') {
+    window.ethereum.request({ method: 'eth_accounts' }).then(accounts => {
+      if (accounts.length > 0) {
+        walletAddress.value = accounts[0];
+      }
+    }).catch(console.error);
+
+    window.ethereum.on('accountsChanged', (accounts) => {
+      if (accounts.length > 0) {
+        walletAddress.value = accounts[0];
+      } else {
+        walletAddress.value = null;
+      }
+    });
+  }
 });
 </script>
 
